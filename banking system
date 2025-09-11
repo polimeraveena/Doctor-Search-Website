@@ -1,0 +1,127 @@
+
+import tkinter as tk
+from tkinter import messagebox
+import sqlite3
+
+# ---------------- DATABASE ----------------
+def run_query(query, params=()):
+    conn = sqlite3.connect("bank_statement.db")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            balance REAL
+        )
+    """)
+    cur.execute(query, params)
+    conn.commit()
+    data = cur.fetchall()
+    conn.close()
+    return data
+
+# ---------------- FUNCTIONS ----------------
+def show_accounts():
+    records = run_query("SELECT * FROM accounts")
+    text_output.delete(1.0, tk.END)
+    if records:
+        text_output.insert(tk.END, f"{'ID':<5}{'Name':<20}{'Balance':<12}\n")
+        text_output.insert(tk.END, "-"*40 + "\n")
+        for r in records:
+            text_output.insert(tk.END, f"{r[0]:<5}{r[1]:<20}₹{r[2]:<10.2f}\n")
+    else:
+        text_output.insert(tk.END, "No accounts found.\n")
+
+def create_account():
+    name, amt_raw = entry_name.get().strip(), entry_amt.get().strip()
+    if not name:
+        return messagebox.showerror("Error", "Name cannot be empty")
+    try:
+        amt = float(amt_raw)
+    except ValueError:
+        return messagebox.showerror("Error", "Enter valid amount")
+    if amt < 0:
+        return messagebox.showerror("Error", "Amount must be >= 0")
+
+    run_query("INSERT OR REPLACE INTO accounts (name, balance) VALUES (?, ?)", (name, amt))
+    clear_entries()
+    show_accounts()
+    messagebox.showinfo("Success", f"Account created for {name}")
+
+def get_account(identifier):
+    if identifier.isdigit():
+        rows = run_query("SELECT id, name, balance FROM accounts WHERE id=?", (int(identifier),))
+    else:
+        rows = run_query("SELECT id, name, balance FROM accounts WHERE name=?", (identifier,))
+    return rows[0] if rows else None
+
+def update_balance(op):
+    identifier, amt_raw = entry_name.get().strip(), entry_amt.get().strip()
+    if not identifier:
+        return messagebox.showerror("Error", "Enter account ID or Name")
+    try:
+        amt = float(amt_raw)
+    except ValueError:
+        return messagebox.showerror("Error", "Enter valid amount")
+    if amt <= 0:
+        return messagebox.showerror("Error", "Amount must be greater than 0")
+
+    acc = get_account(identifier)
+    if not acc:
+        return messagebox.showerror("Error", "Account not found")
+
+    id_num, acc_name, bal = acc
+    if op == "Withdraw" and amt > bal:
+        return messagebox.showerror("Error", "Insufficient funds")
+
+    new_bal = bal + amt if op == "Deposit" else bal - amt
+    run_query("UPDATE accounts SET balance=? WHERE id=?", (new_bal, id_num))
+    clear_entries()
+    show_accounts()
+    messagebox.showinfo("Success", f"{op} successful for '{acc_name}'. New Balance: ₹{new_bal:.2f}")
+
+def delete_account():
+    identifier = entry_name.get().strip()
+    if not identifier:
+        return messagebox.showerror("Error", "Enter account ID or Name to delete")
+
+    acc = get_account(identifier)
+    if not acc:
+        return messagebox.showerror("Error", "Account not found")
+
+    id_num, acc_name, _ = acc
+    run_query("DELETE FROM accounts WHERE id=?", (id_num,))
+    clear_entries()
+    show_accounts()
+    messagebox.showinfo("Deleted", f"Account '{acc_name}' (ID {id_num}) has been deleted.")
+
+def clear_entries():
+    entry_name.delete(0, tk.END)
+    entry_amt.delete(0, tk.END)
+
+# ---------------- GUI ----------------
+root = tk.Tk()
+root.title("🏦 Banking Statement System")
+root.geometry("500x520")
+
+# Change background color
+root.configure(bg="#e6f7ff")  # light blue theme
+
+tk.Label(root, text="Banking Statement System", font=("Arial", 16, "bold"), bg="#e6f7ff", fg="black").pack(pady=10)
+tk.Label(root, text="Name or ID:", bg="#e6f7ff").pack()
+entry_name = tk.Entry(root); entry_name.pack()
+tk.Label(root, text="Amount:", bg="#e6f7ff").pack()
+entry_amt = tk.Entry(root); entry_amt.pack()
+
+tk.Button(root, text="Create Account", width=20, bg="#4CAF50", fg="white", command=create_account).pack(pady=5)
+tk.Button(root, text="Deposit", width=20, bg="#2196F3", fg="white", command=lambda: update_balance("Deposit")).pack(pady=5)
+tk.Button(root, text="Withdraw", width=20, bg="#FF9800", fg="white", command=lambda: update_balance("Withdraw")).pack(pady=5)
+tk.Button(root, text="Delete Account", width=20, bg="red", fg="white", command=delete_account).pack(pady=5)
+
+# Output area
+text_output = tk.Text(root, height=15, width=55, bg="lightyellow", fg="black")
+text_output.pack(pady=10)
+
+show_accounts()
+
+root.mainloop()
