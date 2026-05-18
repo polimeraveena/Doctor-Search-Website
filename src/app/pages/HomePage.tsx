@@ -17,7 +17,7 @@ export function HomePage() {
     { name: 'Pediatrics', icon: Calendar },
     { name: 'Orthopedics', icon: Award },
     { name: 'Neurology', icon: Stethoscope },
-    { name: 'General Practice', icon: Heart },
+    { name: 'Dentistry', icon: Heart },
   ];
 
   return (

@@ -10,12 +10,12 @@ interface FilterSectionProps {
 const specialties = [
   'All Specialties',
   'Cardiology',
+  'Dentistry',
   'Dermatology',
   'General Practice',
   'Neurology',
   'Orthopedics',
-  'Pediatrics',
-  'Psychiatry'
+  'Pediatrics'
 ];
 
 const ratings = [
